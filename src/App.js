@@ -4,6 +4,7 @@ import React, { Component } from 'react'
 import { Table, Card, Row, Column } from 'react-bootstrap'
 
 import 'bootstrap/dist/css/bootstrap.min.css'
+import 'bootstrap/dist/js/bootstrap.bundle.min.js'
 
 const API = 'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-mainnet'
 const DEFAULT_QUERY = `{
@@ -39,20 +40,24 @@ class App extends Component {
       hits: [],
       partners: ['Rui', 'Matt', 'Bridger', 'Billy'],
       stakes: [25000, 25000, 25000, 25000],
-      payouts: [],
-      states: []
+      states: [],
+      grtPrice: undefined
     }
   }
 
   componentDidMount () {
+    window.fetch('https://api.coingecko.com/api/v3/simple/price?ids=the-graph&vs_currencies=usd', {})
+      .then(response => response.json())
+      .then(data => {
+        this.setState({ grtPrice: data['the-graph'].usd })
+      })
+
     window.fetch(API, {
       method: 'POST',
       body: JSON.stringify({ query: DEFAULT_QUERY })
     })
       .then(response => response.json())
       .then(data => {
-        console.log(JSON.stringify(data))
-
         let hits = data.data.allocations
 
         // normalizez
@@ -63,6 +68,7 @@ class App extends Component {
           o.createdAt = new Date(o.createdAt * 1000)
           o.closedAt = new Date(o.closedAt * 1000)
           o.durationDays = parseInt((o.closedAt - o.createdAt) / MILLIS_IN_DAY)
+          o.rewardsUsd = parseInt(o.indexingRewards / 10 ** 18) * this.state.grtPrice
           return o
         })
 
@@ -82,6 +88,7 @@ class App extends Component {
             let start = index > 0 ? states[index - 1][i].end : stakes[i]
             let share = start / totalStake
             let payout = share * hit.indexingRewards
+            let payoutUsd = parseInt(payout / 10 ** 18) * this.state.grtPrice
             let end = start + payout
 
             let apy = (365 / hit.durationDays) * payout / start
@@ -90,6 +97,7 @@ class App extends Component {
               partner: partners[i],
               share,
               payout,
+              payoutUsd,
               start,
               end,
               apy
@@ -126,6 +134,7 @@ class App extends Component {
                     <th>Closed Time</th>
                     <th>Duration</th>
                     <th>Indexer Rewards</th>
+                    <th>Rewards USD</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -137,6 +146,7 @@ class App extends Component {
                     <td>{hit.closedAt.toLocaleString()}</td>
                     <td>{hit.durationDays} Days</td>
                     <td>{(hit.indexingRewards / 10 ** 18).toLocaleString()}</td>
+                    <td>${hit.rewardsUsd.toLocaleString()}</td>
                   </tr>
                 </tbody>
               </Table>
@@ -147,16 +157,18 @@ class App extends Component {
                     <th>Partner</th>
                     <th>Start Stake</th>
                     <th>Rewards Cut</th>
+                    <th>Rewards USD</th>
                     <th>End Stake</th>
                     <th>APY</th>
                   </tr>
                 </thead>
                 <tbody>
                   {this.state.partners.map((partner, pindex) =>
-                    <tr>
+                    <tr key={pindex}>
                       <td>{partner}</td>
                       <td>{(this.state.states[index][pindex].start / 10 ** 18).toLocaleString()}</td>
                       <td>{(this.state.states[index][pindex].payout / 10 ** 18).toLocaleString()}</td>
+                      <td>${(this.state.states[index][pindex].payoutUsd).toLocaleString()}</td>
                       <td>{(this.state.states[index][pindex].end / 10 ** 18).toLocaleString()}</td>
                       <td>{(this.state.states[index][pindex].apy * 100).toFixed(1)}%</td>
                     </tr>
