@@ -58,9 +58,11 @@ class App extends Component {
         // normalizez
         this.state.stakes = this.state.stakes.map(s => s * 10 ** 18)
 
+        const MILLIS_IN_DAY = 1000 * 60 * 60 * 24
         hits = hits.map(o => {
           o.createdAt = new Date(o.createdAt * 1000)
           o.closedAt = new Date(o.closedAt * 1000)
+          o.durationDays = parseInt((o.closedAt - o.createdAt) / MILLIS_IN_DAY)
           return o
         })
 
@@ -82,12 +84,15 @@ class App extends Component {
             let payout = share * hit.indexingRewards
             let end = start + payout
 
+            let apy = (365 / hit.durationDays) * payout / start
+
             states[index].push({
               partner: partners[i],
               share,
               payout,
               start,
-              end
+              end,
+              apy
             })
           }
           console.log('states', states)
@@ -119,6 +124,7 @@ class App extends Component {
                     <th>Allocation</th>
                     <th>Create Time</th>
                     <th>Closed Time</th>
+                    <th>Duration</th>
                     <th>Indexer Rewards</th>
                   </tr>
                 </thead>
@@ -129,7 +135,8 @@ class App extends Component {
                     <td>{hit.id}</td>
                     <td>{hit.createdAt.toLocaleString()}</td>
                     <td>{hit.closedAt.toLocaleString()}</td>
-                    <td>{(hit.indexingRewards / 10 ** 18).toFixed(2)}</td>
+                    <td>{hit.durationDays} Days</td>
+                    <td>{(hit.indexingRewards / 10 ** 18).toLocaleString()}</td>
                   </tr>
                 </tbody>
               </Table>
@@ -142,7 +149,6 @@ class App extends Component {
                     <th>Rewards Cut</th>
                     <th>End Stake</th>
                     <th>APY</th>
-                    <th>Total APY</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -152,8 +158,7 @@ class App extends Component {
                       <td>{(this.state.states[index][pindex].start / 10 ** 18).toLocaleString()}</td>
                       <td>{(this.state.states[index][pindex].payout / 10 ** 18).toLocaleString()}</td>
                       <td>{(this.state.states[index][pindex].end / 10 ** 18).toLocaleString()}</td>
-                      <td>{this.state.states[index][pindex].startStake}</td>
-                      <td>{this.state.states[index][pindex].startStake}</td>
+                      <td>{(this.state.states[index][pindex].apy * 100).toFixed(1)}%</td>
                     </tr>
                   )}
                 </tbody>
